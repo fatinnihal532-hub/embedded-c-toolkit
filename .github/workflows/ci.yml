@@ -1,0 +1,36 @@
+# Runs on GitHub's servers every time code is pushed or a pull request opens.
+# The badge in README.md turns red the moment a test fails, which is the whole
+# point: a broken commit is visible without anyone having to run anything.
+
+name: tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show compiler version
+        run: ${{ matrix.compiler }} --version
+
+      - name: Build and run the test suites
+        run: make test CC=${{ matrix.compiler }}
+
+      - name: Check the modules also build for AVR
+        if: matrix.compiler == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-avr avr-libc
+          avr-gcc -mmcu=atmega328p -DF_CPU=16000000UL -Os -std=c99 \
+                  -Wall -Wextra -Werror -Isrc -c src/*.c
+          echo "the same sources compile for an 8-bit target"
